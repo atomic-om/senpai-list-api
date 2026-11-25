@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -26,10 +27,10 @@ public class SeasonService {
 
     @Transactional(readOnly = true)
     public List<SeasonResponse> allSeason(Long animeId, User currentUser) {
-        animeService.fetchAnime(animeId, currentUser.getId());
+        Anime anime = animeService.fetchAnime(animeId, currentUser.getId());
 
-        return seasonRepository.findAllByAnimeIdAndAnimeUserIdOrderBySeasonNumberAsc(animeId, currentUser.getId())
-                .stream()
+        return anime.getSeasons().stream()
+                .sorted(Comparator.comparing(Season::getSeasonNumber))
                 .map(SeasonResponse::from)
                 .toList();
     }
@@ -60,6 +61,7 @@ public class SeasonService {
                 .anime(anime)
                 .build();
 
+        anime.touch();
         return SeasonResponse.from(seasonRepository.save(season));
     }
 
@@ -92,12 +94,15 @@ public class SeasonService {
 
         validateEpisodeCounts(season.getEpisodesWatched(), season.getTotalEpisodes());
 
+        season.getAnime().touch();
         return SeasonResponse.from(seasonRepository.save(season));
     }
 
     @Transactional
     public void deleteSeason(Long animeId, Long seasonId, User currentUser) {
-        seasonRepository.delete(fetchSeason(seasonId, animeId, currentUser.getId()));
+        Season season = fetchSeason(seasonId, animeId, currentUser.getId());
+        season.getAnime().touch();
+        seasonRepository.delete(season);
     }
 
     private Season fetchSeason(Long seasonId, Long animeId, Long userId) {

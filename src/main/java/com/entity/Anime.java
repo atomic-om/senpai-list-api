@@ -2,6 +2,7 @@ package com.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ public class Anime {
 
     @OneToMany(mappedBy = "anime", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("seasonNumber ASC")
+    @BatchSize(size = 20)
     @Builder.Default
     private List<Season> seasons = new ArrayList<>();
 
@@ -52,5 +54,9 @@ public class Anime {
     public void addSeason(Season season) {
         seasons.add(season);
         season.setAnime(this);
+    }
+
+    public void touch() {
+        this.updatedAt = LocalDateTime.now();
     }
 }
