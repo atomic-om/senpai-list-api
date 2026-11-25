@@ -9,8 +9,9 @@ A multi-user RESTful API for tracking anime watchlists across multiple seasons, 
 * 🔐 **Stateless JWT Auth** — Secure registration and login with BCrypt password hashing.
 * 👤 **User Isolation** — Every user only sees and manages their own anime list.
 * 📺 **Multi-Season Tracking** — Track seasons, episode counts, watch status, and ratings independently per anime.
-* 🛡️ **Global Error Handling** — Clean, consistent JSON responses for `400`, `401`, `404`, and `409` errors.
-* ⚡ **Optimized Queries** — Uses `@EntityGraph` and `open-in-view=false` to prevent N+1 query issues.
+* 🔍 **Anime Discovery** — Search and browse trending anime via the AniList GraphQL API.
+* 🛡️ **Global Error Handling** — Clean, consistent JSON responses for `400`, `401`, `404`, `409`, and `502`/`503` errors.
+* ⚡ **Optimized Queries** — Uses `@EntityGraph`, `@BatchSize`, and `open-in-view=false` to prevent N+1 query issues.
 
 ---
 
@@ -58,6 +59,7 @@ Configure these variables in your IDE or terminal:
 |`DB_PASSWORD`|MySQL password|`your-password`|
 |`JWT_SECRET`|Base64 256-bit secret key|`openssl rand -base64 32`|
 |`JWT_EXPIRATION`|Token expiry in ms|`86400000` *(24h)*|
+|`SHOW_SQL`|Optional Hibernate SQL logging (`true`/`false`)|`false` *(default)*|
 
 ### 3. Run the Server
 

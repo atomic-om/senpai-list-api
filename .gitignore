@@ -40,3 +40,6 @@ out/
 .env
 .env.*
 application-local.properties
+
+### Logs ###
+*.log

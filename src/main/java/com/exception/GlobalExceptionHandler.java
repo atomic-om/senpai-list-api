@@ -3,6 +3,7 @@ package com.exception;
 import com.dto.error.ErrorResponse;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -171,5 +173,29 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception e) {
+        if (e instanceof org.springframework.web.ErrorResponse springError) {
+            HttpStatus status = HttpStatus.resolve(springError.getStatusCode().value());
+            String error = status != null ? status.getReasonPhrase() : "Error";
+            String detail = springError.getBody().getDetail();
+            return ResponseEntity.status(springError.getStatusCode())
+                    .body(new ErrorResponse(
+                            springError.getStatusCode().value(),
+                            error,
+                            detail != null ? detail : error
+                    ));
+        }
+
+        log.error("Unhandled exception occurred", e);
+        ErrorResponse response = new ErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Internal Server Error",
+                "An unexpected internal error occurred"
+        );
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 }

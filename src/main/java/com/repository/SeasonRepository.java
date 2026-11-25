@@ -13,8 +13,6 @@ public interface SeasonRepository extends JpaRepository<Season, Long> {
 
     boolean existsByAnimeIdAndSeasonNumber(Long animeId, Integer seasonNumber);
 
-    List<Season> findAllByAnimeIdAndAnimeUserIdOrderBySeasonNumberAsc(Long animeId, Long userId);
-
     @Query("SELECT COUNT(s) FROM Season s WHERE s.anime.user.id = :userId")
     long countByUserId(@Param("userId") Long userId);
 

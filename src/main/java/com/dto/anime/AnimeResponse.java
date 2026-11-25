@@ -8,7 +8,6 @@ import com.entity.WatchStatus;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 public record AnimeResponse(
