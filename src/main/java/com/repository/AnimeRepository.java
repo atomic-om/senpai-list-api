@@ -22,4 +22,6 @@ public interface AnimeRepository extends JpaRepository<Anime, Long>, JpaSpecific
     Optional<Anime> findByIdAndUserId(Long id, Long userId);
 
     boolean existsByUserIdAndTitleIgnoreCase(Long userId, String title);
+
+    long countByUserId(Long userId);
 }

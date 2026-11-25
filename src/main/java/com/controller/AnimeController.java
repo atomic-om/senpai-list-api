@@ -1,5 +1,6 @@
 package com.controller;
 
+import com.dto.StatsResponse;
 import com.dto.anime.AnimeResponse;
 import com.dto.anime.CreateAnimeRequest;
 import com.dto.anime.UpdateAnimeRequest;
@@ -67,5 +68,10 @@ public class AnimeController {
     ) {
         animeService.deleteAnime(animeId, currentUse);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<StatsResponse> getStats(@AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(animeService.getStats(currentUser));
     }
 }

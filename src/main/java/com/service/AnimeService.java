@@ -1,5 +1,6 @@
 package com.service;
 
+import com.dto.StatsResponse;
 import com.dto.anime.AnimeResponse;
 import com.dto.anime.CreateAnimeRequest;
 import com.dto.anime.UpdateAnimeRequest;
@@ -11,6 +12,7 @@ import com.entity.WatchStatus;
 import com.exception.ResourceNotFoundException;
 import com.repository.AnimeRepository;
 import com.repository.AnimeSpecification;
+import com.repository.SeasonRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,7 +20,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -26,6 +30,7 @@ import java.util.Set;
 public class AnimeService {
 
     private final AnimeRepository animeRepository;
+    private final SeasonRepository seasonRepository;
 
     @Transactional
     public AnimeResponse addAnime(CreateAnimeRequest request, User currentUser) {
@@ -106,6 +111,35 @@ public class AnimeService {
     @Transactional
     public void deleteAnime(Long animeId, User currentUser) {
         animeRepository.delete(fetchAnime(animeId, currentUser.getId()));
+    }
+
+    @Transactional(readOnly = true)
+    public StatsResponse getStats(User currentUser) {
+        Long userId = currentUser.getId();
+
+        long totalAnimes = animeRepository.countByUserId(userId);
+        long totalSeasons = seasonRepository.countByUserId(userId);
+        long totalEpisodesWatched = seasonRepository.sumEpisodesWatchedByUserId(userId);
+        Double rawAvg = seasonRepository.findAverageRatingByUserId(userId);
+        Double averageRating = rawAvg != null ? Math.round(rawAvg * 100.0) / 100.0 : null;
+
+        Map<WatchStatus, Long> seasonsByStatus = new EnumMap<>(WatchStatus.class);
+        for (WatchStatus status : WatchStatus.values()) {
+            seasonsByStatus.put(status, 0L);
+        }
+        for (Object[] row : seasonRepository.countSeasonsByStatusForUser(userId)) {
+            WatchStatus status = (WatchStatus) row[0];
+            Long count = (Long) row[1];
+            seasonsByStatus.put(status, count);
+        }
+
+        return new StatsResponse(
+                totalAnimes,
+                totalSeasons,
+                totalEpisodesWatched,
+                averageRating,
+                seasonsByStatus
+        );
     }
 
     public Anime fetchAnime(Long animeId, Long userId) {
