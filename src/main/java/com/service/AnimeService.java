@@ -9,6 +9,8 @@ import com.entity.Anime;
 import com.entity.Season;
 import com.entity.User;
 import com.entity.WatchStatus;
+import com.exception.BadRequestException;
+import com.exception.DuplicateResourceException;
 import com.exception.ResourceNotFoundException;
 import com.repository.AnimeRepository;
 import com.repository.AnimeSpecification;
@@ -37,7 +39,7 @@ public class AnimeService {
         String trimmedTitle = request.title().trim();
 
         if (animeRepository.existsByUserIdAndTitleIgnoreCase(currentUser.getId(), trimmedTitle)) {
-            throw new IllegalArgumentException("Anime '" + trimmedTitle + "' is already in your watchlist");
+            throw new DuplicateResourceException("Anime '" + trimmedTitle + "' is already in your watchlist");
         }
 
         Anime anime = Anime.builder()
@@ -51,14 +53,10 @@ public class AnimeService {
 
             for (SeasonRequest seasonReq : request.seasons()) {
                 if (!seenSeasonNumbers.add(seasonReq.seasonNumber())) {
-                    throw new IllegalArgumentException("Duplicate season number: " + seasonReq.seasonNumber());
+                    throw new DuplicateResourceException("Duplicate season number: " + seasonReq.seasonNumber());
                 }
                 int watched = seasonReq.episodesWatched() != null ? seasonReq.episodesWatched() : 0;
-                if (seasonReq.totalEpisodes() != null && watched > seasonReq.totalEpisodes()) {
-                    throw new IllegalArgumentException(
-                            "Episodes watched (" + watched + ") cannot exceed total episodes (" + seasonReq.totalEpisodes() + ")"
-                    );
-                }
+                SeasonService.validateEpisodeCounts(watched, seasonReq.totalEpisodes());
 
                 Season season = Season.builder()
                         .seasonNumber(seasonReq.seasonNumber())
@@ -91,12 +89,15 @@ public class AnimeService {
     public AnimeResponse updateAnime(Long animeId, UpdateAnimeRequest request, User currentUser) {
         Anime anime = fetchAnime(animeId, currentUser.getId());
 
-        if (request.title() != null && !request.title().isBlank()) {
+        if (request.title() != null) {
             String trimmedTitle = request.title().trim();
+            if (trimmedTitle.isEmpty()) {
+                throw new BadRequestException("Anime title cannot be blank");
+            }
 
             if (!anime.getTitle().equalsIgnoreCase(trimmedTitle)
                     && animeRepository.existsByUserIdAndTitleIgnoreCase(currentUser.getId(), trimmedTitle)) {
-                throw new IllegalArgumentException("Anime '" + trimmedTitle + "' is already in your watchlist");
+                throw new DuplicateResourceException("Anime '" + trimmedTitle + "' is already in your watchlist");
             }
             anime.setTitle(trimmedTitle);
         }

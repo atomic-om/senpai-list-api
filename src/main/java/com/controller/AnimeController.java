@@ -57,7 +57,7 @@ public class AnimeController {
     @PatchMapping("/{animeId}")
     public ResponseEntity<AnimeResponse> updateAnime(
             @PathVariable Long animeId,
-            @RequestBody UpdateAnimeRequest request,
+            @Valid @RequestBody UpdateAnimeRequest request,
             @Parameter(hidden = true) @AuthenticationPrincipal User currentUser
     ) {
         return ResponseEntity.ok(animeService.updateAnime(animeId, request, currentUser));

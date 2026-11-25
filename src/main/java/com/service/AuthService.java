@@ -4,6 +4,8 @@ import com.dto.auth.AuthResponse;
 import com.dto.auth.LoginRequest;
 import com.dto.auth.RegisterRequest;
 import com.entity.User;
+import com.exception.DuplicateResourceException;
+import com.exception.ResourceNotFoundException;
 import com.repository.UserRepository;
 import com.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -23,11 +25,11 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("Email is already register");
+            throw new DuplicateResourceException("Email is already registered");
         }
 
         if (userRepository.existsByUsername(request.username())) {
-            throw new IllegalArgumentException("Username is already taken");
+            throw new DuplicateResourceException("Username is already taken");
         }
 
         User user = User.builder()
@@ -48,7 +50,7 @@ public class AuthService {
         );
 
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         String token = jwtService.generateToken(user);
 

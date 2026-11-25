@@ -3,11 +3,13 @@ package com.dto.season;
 import com.entity.WatchStatus;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 
 public record UpdateSeasonRequest(
         @Min(value = 1, message = "Season number must be at least 1")
         Integer seasonNumber,
 
+        @Size(max = 255, message = "Season title must not exceed 255 characters")
         String title,
 
         WatchStatus status,

@@ -7,6 +7,8 @@ import com.entity.Anime;
 import com.entity.Season;
 import com.entity.User;
 import com.entity.WatchStatus;
+import com.exception.BadRequestException;
+import com.exception.DuplicateResourceException;
 import com.exception.ResourceNotFoundException;
 import com.repository.SeasonRepository;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +44,7 @@ public class SeasonService {
         Anime anime = animeService.fetchAnime(animeId, currentUser.getId());
 
         if (seasonRepository.existsByAnimeIdAndSeasonNumber(animeId, request.seasonNumber())) {
-            throw new IllegalArgumentException("Season " + request.seasonNumber() + " already exists for this anime");
+            throw new DuplicateResourceException("Season " + request.seasonNumber() + " already exists for this anime");
         }
 
         int watched = request.episodesWatched() != null ? request.episodesWatched() : 0;
@@ -67,7 +69,7 @@ public class SeasonService {
 
         if (request.seasonNumber() != null && !request.seasonNumber().equals(season.getSeasonNumber())) {
             if (seasonRepository.existsByAnimeIdAndSeasonNumber(animeId, request.seasonNumber())) {
-                throw new IllegalArgumentException("Season " + request.seasonNumber() + " already exists for this anime");
+                throw new DuplicateResourceException("Season " + request.seasonNumber() + " already exists for this anime");
             }
             season.setSeasonNumber(request.seasonNumber());
         }
@@ -103,9 +105,9 @@ public class SeasonService {
                 .orElseThrow(() -> new ResourceNotFoundException("Season not found with id: " + seasonId));
     }
 
-    private void validateEpisodeCounts(Integer watched, Integer total) {
+    public static void validateEpisodeCounts(Integer watched, Integer total) {
         if (total != null && watched != null && watched > total) {
-            throw new IllegalArgumentException("Episodes watched (" + watched + ") cannot exceed total episodes (" + total + ")");
+            throw new BadRequestException("Episodes watched (" + watched + ") cannot exceed total episodes (" + total + ")");
         }
     }
 }
