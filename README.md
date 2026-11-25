@@ -82,7 +82,7 @@ Interactive OpenAPI documentation is available while the server is running:
 
 ## 📡 API Endpoints
 
-> 🔒 **Authentication:** All `/api/v1/animes` and `/seasons` endpoints require a `Bearer <token>` header.
+> 🔒 **Authentication:** All `/api/v1/animes`, `/seasons`, and `/api/v1/discover` endpoints require a `Bearer <token>` header.
 
 ### 🔑 Auth (`/api/v1/auth`)
 
@@ -121,6 +121,15 @@ Interactive OpenAPI documentation is available while the server is running:
 | `GET` | `/{seasonId}` | Get a single season|
 | `PATCH` | `/{seasonId}` | Update progress, status, or rating |
 | `DELETE` | `/{seasonId}` | Delete a season |
+
+### 🔎 Discover (`/api/v1/discover`)
+
+Powered by the **AniList GraphQL API** (`isAdult: false`, 12 results per page):
+
+| Method | Endpoint | Query Params | Action |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/search` | `q` (required, non-blank), `page` (default `1`) | Search anime catalog via AniList (sorted by popularity) |
+| `GET` | `/top` | `page` (default `1`) | Browse trending anime via AniList |
 
 ---
 
@@ -187,6 +196,7 @@ All exceptions return a standardized JSON payload via `GlobalExceptionHandler`:
 | **`401`** | `Unauthorized` | Missing, expired, or invalid JWT token / bad credentials |
 | **`404`** | `Not Found` | Anime or season ID does not exist (or belongs to another user) |
 | **`409`** | `Conflict` | Duplicate email/username, or duplicate anime title/season number |
+| **`502` / `503`** | `Bad Gateway` / `Service Unavailable` | Upstream AniList API failure, timeout, or rate limit exceeded |
 
 ---
 

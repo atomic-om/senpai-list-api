@@ -144,6 +144,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
+    @ExceptionHandler(UpstreamServiceException.class)
+    public ResponseEntity<ErrorResponse> handleUpstreamService(UpstreamServiceException e) {
+        ErrorResponse response = new ErrorResponse(
+                e.getStatus().value(),
+                e.getStatus().getReasonPhrase(),
+                e.getMessage()
+        );
+
+        return ResponseEntity.status(e.getStatus()).body(response);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationErrors(MethodArgumentNotValidException e) {
         Map<String, String> fieldErrors = new HashMap<>();

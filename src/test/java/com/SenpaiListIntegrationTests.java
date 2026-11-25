@@ -1,7 +1,10 @@
 package com;
 
+import com.dto.discover.DiscoverAnimeResponse;
+import com.exception.UpstreamServiceException;
 import com.repository.AnimeRepository;
 import com.repository.UserRepository;
+import com.service.AniListService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -10,17 +13,21 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.Date;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.hamcrest.Matchers.*;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -36,6 +43,9 @@ class SenpaiListIntegrationTests {
 
     @Autowired
     private AnimeRepository animeRepository;
+
+    @MockitoBean
+    private AniListService aniListService;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -427,5 +437,161 @@ class SenpaiListIntegrationTests {
 
         mockMvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void animeResponseIncludesDerivedOverallStatus() throws Exception {
+        String token = registerUser("luffy", "luffy@senpailist.com", "secret123");
+
+        // Empty seasons -> PLAN_TO_WATCH
+        mockMvc.perform(post("/api/v1/animes")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title": "One Piece"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.overallStatus").value("PLAN_TO_WATCH"));
+
+        // Mixed COMPLETED + PLAN_TO_WATCH -> WATCHING
+        mockMvc.perform(post("/api/v1/animes")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Vinland Saga",
+                                  "seasons": [
+                                    {"seasonNumber": 1, "status": "COMPLETED", "episodesWatched": 24, "totalEpisodes": 24},
+                                    {"seasonNumber": 2, "status": "PLAN_TO_WATCH"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.overallStatus").value("WATCHING"));
+
+        // COMPLETED + ON_HOLD (no WATCHING) -> ON_HOLD
+        mockMvc.perform(post("/api/v1/animes")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Mob Psycho 100",
+                                  "seasons": [
+                                    {"seasonNumber": 1, "status": "COMPLETED"},
+                                    {"seasonNumber": 2, "status": "ON_HOLD"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.overallStatus").value("ON_HOLD"));
+    }
+
+    @Test
+    void discoverEndpointsAndUpstreamErrorsWork() throws Exception {
+        String token = registerUser("zoro", "zoro@senpailist.com", "secret123");
+
+        // Unauthenticated -> 401
+        mockMvc.perform(get("/api/v1/discover/top"))
+                .andExpect(status().isUnauthorized());
+
+        // Blank q -> 400
+        mockMvc.perform(get("/api/v1/discover/search?q=   ")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+
+        // Page < 1 -> 400
+        mockMvc.perform(get("/api/v1/discover/top?page=0")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+
+        // Search -> 200
+        when(aniListService.searchAnime("frieren", 1)).thenReturn(List.of(
+                new DiscoverAnimeResponse(
+                        154587L,
+                        "Frieren: Beyond Journey's End",
+                        "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx154587-extra.jpg",
+                        28,
+                        9.1,
+                        "FINISHED",
+                        "An elf mage embarks on a journey."
+                )
+        ));
+
+        mockMvc.perform(get("/api/v1/discover/search?q=frieren")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].anilistId").value(154587))
+                .andExpect(jsonPath("$[0].title").value("Frieren: Beyond Journey's End"))
+                .andExpect(jsonPath("$[0].coverImageUrl").value("https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx154587-extra.jpg"))
+                .andExpect(jsonPath("$[0].episodes").value(28))
+                .andExpect(jsonPath("$[0].score").value(9.1))
+                .andExpect(jsonPath("$[0].airingStatus").value("FINISHED"));
+
+        // Top -> 200
+        when(aniListService.getTopAnime(2)).thenReturn(List.of(
+                new DiscoverAnimeResponse(
+                        5114L,
+                        "Fullmetal Alchemist: Brotherhood",
+                        "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx5114-extra.jpg",
+                        64,
+                        9.0,
+                        "FINISHED",
+                        "Two brothers search for the Philosopher's Stone."
+                )
+        ));
+
+        mockMvc.perform(get("/api/v1/discover/top?page=2")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].anilistId").value(5114));
+
+        // Upstream rate limit -> 503 ErrorResponse
+        when(aniListService.getTopAnime(3)).thenThrow(
+                new UpstreamServiceException(HttpStatus.SERVICE_UNAVAILABLE, "AniList API rate limit exceeded. Please try again later.")
+        );
+
+        mockMvc.perform(get("/api/v1/discover/top?page=3")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status").value(503))
+                .andExpect(jsonPath("$.error").value("Service Unavailable"));
+
+        // Upstream error -> 502 ErrorResponse
+        when(aniListService.searchAnime("error", 1)).thenThrow(
+                new UpstreamServiceException(HttpStatus.BAD_GATEWAY, "Upstream AniList API error (status 500)")
+        );
+
+        mockMvc.perform(get("/api/v1/discover/search?q=error")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.status").value(502))
+                .andExpect(jsonPath("$.error").value("Bad Gateway"));
+    }
+
+    @Test
+    void corsPreflightAllowsConfiguredOrigins() throws Exception {
+        mockMvc.perform(options("/api/v1/animes")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "Authorization, Content-Type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                .andExpect(header().string("Access-Control-Allow-Methods", containsString("GET")));
+
+        mockMvc.perform(options("/api/v1/discover/top")
+                        .header("Origin", "http://localhost:3000")
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "Authorization, Content-Type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:3000"));
+
+        mockMvc.perform(options("/api/v1/animes")
+                        .header("Origin", "http://evil.example.com")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isForbidden());
     }
 }

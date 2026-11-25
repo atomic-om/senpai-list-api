@@ -15,7 +15,6 @@ public record CreateAnimeRequest(
         @Size(max = 255, message = "Cover image URL must not exceed 255 characters")
         String coverImageUrl,
 
-        @Valid
-        List<SeasonRequest> seasons
+        List<@Valid SeasonRequest> seasons
 ) {
 }
