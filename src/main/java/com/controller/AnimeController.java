@@ -4,15 +4,19 @@ import com.dto.anime.AnimeResponse;
 import com.dto.anime.CreateAnimeRequest;
 import com.dto.anime.UpdateAnimeRequest;
 import com.entity.User;
+import com.entity.WatchStatus;
 import com.service.AnimeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/animes")
@@ -31,8 +35,12 @@ public class AnimeController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AnimeResponse>> allAnime(@AuthenticationPrincipal User currentUser) {
-        return ResponseEntity.ok(animeService.allAnime(currentUser));
+    public ResponseEntity<Page<AnimeResponse>> allAnime(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) WatchStatus status,
+            @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(animeService.allAnime(currentUser, search, status, pageable));
     }
 
     @GetMapping("/{animeId}")

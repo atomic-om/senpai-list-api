@@ -10,12 +10,15 @@ import com.entity.User;
 import com.entity.WatchStatus;
 import com.exception.ResourceNotFoundException;
 import com.repository.AnimeRepository;
+import com.repository.AnimeSpecification;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 @Service
@@ -68,11 +71,10 @@ public class AnimeService {
     }
 
     @Transactional(readOnly = true)
-    public List<AnimeResponse> allAnime(User currentUser) {
-        return animeRepository.findAllByUserIdOrderByUpdatedAtDesc(currentUser.getId())
-                .stream()
-                .map(AnimeResponse::from)
-                .toList();
+    public Page<AnimeResponse> allAnime(User currentUser, String search, WatchStatus status, Pageable pageable) {
+        Specification<Anime> spec = AnimeSpecification.filterWatchlist(currentUser.getId(), search, status);
+        return animeRepository.findAll(spec, pageable)
+                .map(AnimeResponse::from);
     }
 
     @Transactional(readOnly = true)
