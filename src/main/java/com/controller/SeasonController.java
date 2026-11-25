@@ -60,7 +60,7 @@ public class SeasonController {
     }
 
     @DeleteMapping("/{seasonId}")
-    public ResponseEntity<Void> deleteMapping(
+    public ResponseEntity<Void> deleteSeason(
             @PathVariable Long animeId,
             @PathVariable Long seasonId,
             @Parameter(hidden = true) @AuthenticationPrincipal User currentUser

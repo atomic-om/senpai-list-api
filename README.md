@@ -71,6 +71,13 @@ gradlew.bat bootRun
 
 Server runs at `http://localhost:8080`.
 
+### 4. Explore with Swagger UI
+
+Interactive OpenAPI documentation is available while the server is running:
+
+* **Swagger UI:** `http://localhost:8080/swagger-ui.html`
+* **OpenAPI Spec (JSON):** `http://localhost:8080/v3/api-docs`
+
 ---
 
 ## 📡 API Endpoints
@@ -89,10 +96,21 @@ Server runs at `http://localhost:8080`.
 | Method | Endpoint | Action |
 | :--- | :--- | :--- |
 | `POST` | `/` | Add a new anime (with optional seasons) |
-| `GET` | `/` | Get your full watchlist |
+| `GET` | `/` | Get your paginated watchlist (`search`, `status`, `page`, `size`, `sort`) |
+| `GET` | `/stats` | Get watchlist summary statistics & counts by status |
 | `GET` | `/{animeId}` | Get one anime and its seasons |
 | `PATCH` | `/{animeId}` | Update anime title or cover image |
 | `DELETE` | `/{animeId}` | Delete an anime and its seasons |
+
+#### Watchlist Query Parameters (`GET /api/v1/animes`)
+
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `search` | `String` | — | Case-insensitive substring filter on anime title |
+| `status` | `WatchStatus` | — | Filter animes having at least one season with this status |
+| `page` | `int` | `0` | Zero-based page index |
+| `size` | `int` | `10` | Page size |
+| `sort` | `String` | `updatedAt,desc` | Sort field and direction (e.g., `title,asc`, `updatedAt,desc`) |
 
 ### 🎞️ Seasons (`/api/v1/animes/{animeId}/seasons`)
 
@@ -165,10 +183,10 @@ All exceptions return a standardized JSON payload via `GlobalExceptionHandler`:
 
 | Status | Error | Trigger |
 | :--- | :--- | :--- |
-| **`400`** | `Bad Request` | Failed `@Valid` input constraints or malformed JSON |
+| **`400`** | `Bad Request` | Failed `@Valid` input constraints, malformed JSON, invalid query/sort params, or `episodesWatched > totalEpisodes` |
 | **`401`** | `Unauthorized` | Missing, expired, or invalid JWT token / bad credentials |
 | **`404`** | `Not Found` | Anime or season ID does not exist (or belongs to another user) |
-| **`409`** | `Conflict` | Duplicate email, duplicate title/season, or watched > total episodes |
+| **`409`** | `Conflict` | Duplicate email/username, or duplicate anime title/season number |
 
 ---
 

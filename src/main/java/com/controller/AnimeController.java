@@ -66,9 +66,9 @@ public class AnimeController {
     @DeleteMapping("/{animeId}")
     public ResponseEntity<Void> deleteAnime(
             @PathVariable Long animeId,
-            @Parameter(hidden = true) @AuthenticationPrincipal User currentUse
+            @Parameter(hidden = true) @AuthenticationPrincipal User currentUser
     ) {
-        animeService.deleteAnime(animeId, currentUse);
+        animeService.deleteAnime(animeId, currentUser);
         return ResponseEntity.noContent().build();
     }
 

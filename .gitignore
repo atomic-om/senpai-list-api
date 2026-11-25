@@ -38,4 +38,5 @@ out/
 
 ### Environment & local secrets ###
 .env
+.env.*
 application-local.properties
