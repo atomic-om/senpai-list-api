@@ -5,6 +5,7 @@ import com.dto.season.SeasonResponse;
 import com.dto.season.UpdateSeasonRequest;
 import com.entity.User;
 import com.service.SeasonService;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,7 +25,7 @@ public class SeasonController {
     @GetMapping
     public ResponseEntity<List<SeasonResponse>> allSeason(
             @PathVariable Long animeId,
-            @AuthenticationPrincipal User currentUser
+            @Parameter(hidden = true) @AuthenticationPrincipal User currentUser
     ) {
         return ResponseEntity.ok(seasonService.allSeason(animeId, currentUser));
     }
@@ -33,7 +34,7 @@ public class SeasonController {
     public ResponseEntity<SeasonResponse> findSeason(
             @PathVariable Long animeId,
             @PathVariable Long seasonId,
-            @AuthenticationPrincipal User currentUser
+            @Parameter(hidden = true) @AuthenticationPrincipal User currentUser
     ) {
         return ResponseEntity.ok(seasonService.findSeason(animeId, seasonId, currentUser));
     }
@@ -42,7 +43,7 @@ public class SeasonController {
     public ResponseEntity<SeasonResponse> addSeason(
             @PathVariable Long animeId,
             @Valid @RequestBody SeasonRequest request,
-            @AuthenticationPrincipal User currentUser
+            @Parameter(hidden = true) @AuthenticationPrincipal User currentUser
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(seasonService.addSeason(animeId, request, currentUser));
@@ -53,7 +54,7 @@ public class SeasonController {
             @PathVariable Long animeId,
             @PathVariable Long seasonId,
             @Valid @RequestBody UpdateSeasonRequest request,
-            @AuthenticationPrincipal User currentUser
+            @Parameter(hidden = true) @AuthenticationPrincipal User currentUser
     ) {
         return ResponseEntity.ok(seasonService.updateSeason(animeId, seasonId, request, currentUser));
     }
@@ -62,7 +63,7 @@ public class SeasonController {
     public ResponseEntity<Void> deleteMapping(
             @PathVariable Long animeId,
             @PathVariable Long seasonId,
-            @AuthenticationPrincipal User currentUser
+            @Parameter(hidden = true) @AuthenticationPrincipal User currentUser
     ) {
         seasonService.deleteSeason(animeId, seasonId, currentUser);
         return ResponseEntity.noContent().build();

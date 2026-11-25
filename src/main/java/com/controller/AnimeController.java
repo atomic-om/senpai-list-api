@@ -7,8 +7,10 @@ import com.dto.anime.UpdateAnimeRequest;
 import com.entity.User;
 import com.entity.WatchStatus;
 import com.service.AnimeService;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -29,7 +31,7 @@ public class AnimeController {
     @PostMapping
     public ResponseEntity<AnimeResponse> addAnime(
             @Valid @RequestBody CreateAnimeRequest request,
-            @AuthenticationPrincipal User currentUser
+            @Parameter(hidden = true) @AuthenticationPrincipal User currentUser
             ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(animeService.addAnime(request, currentUser));
@@ -39,15 +41,15 @@ public class AnimeController {
     public ResponseEntity<Page<AnimeResponse>> allAnime(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) WatchStatus status,
-            @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable,
-            @AuthenticationPrincipal User currentUser) {
+            @ParameterObject @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @Parameter(hidden = true) @AuthenticationPrincipal User currentUser) {
         return ResponseEntity.ok(animeService.allAnime(currentUser, search, status, pageable));
     }
 
     @GetMapping("/{animeId}")
     public ResponseEntity<AnimeResponse> findAnime(
             @PathVariable Long animeId,
-            @AuthenticationPrincipal User currentUser
+            @Parameter(hidden = true) @AuthenticationPrincipal User currentUser
     ) {
         return ResponseEntity.ok(animeService.findAnime(animeId, currentUser));
     }
@@ -56,7 +58,7 @@ public class AnimeController {
     public ResponseEntity<AnimeResponse> updateAnime(
             @PathVariable Long animeId,
             @RequestBody UpdateAnimeRequest request,
-            @AuthenticationPrincipal User currentUser
+            @Parameter(hidden = true) @AuthenticationPrincipal User currentUser
     ) {
         return ResponseEntity.ok(animeService.updateAnime(animeId, request, currentUser));
     }
@@ -64,14 +66,14 @@ public class AnimeController {
     @DeleteMapping("/{animeId}")
     public ResponseEntity<Void> deleteAnime(
             @PathVariable Long animeId,
-            @AuthenticationPrincipal User currentUse
+            @Parameter(hidden = true) @AuthenticationPrincipal User currentUse
     ) {
         animeService.deleteAnime(animeId, currentUse);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/stats")
-    public ResponseEntity<StatsResponse> getStats(@AuthenticationPrincipal User currentUser) {
+    public ResponseEntity<StatsResponse> getStats(@Parameter(hidden = true) @AuthenticationPrincipal User currentUser) {
         return ResponseEntity.ok(animeService.getStats(currentUser));
     }
 }
