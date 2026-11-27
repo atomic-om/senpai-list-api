@@ -2,6 +2,7 @@ package com.config;
 
 import com.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -24,13 +25,19 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final HandlerExceptionResolver handlerExceptionResolver;
+    private final List<String> allowedOrigins;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthFilter,
-            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver,
+            @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000}") List<String> allowedOrigins
     ) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.handlerExceptionResolver = handlerExceptionResolver;
+        this.allowedOrigins = allowedOrigins.stream()
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList();
     }
 
     @Bean
@@ -64,7 +71,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);

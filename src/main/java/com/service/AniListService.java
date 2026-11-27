@@ -178,11 +178,9 @@ public class AniListService {
         String title = resolveTitle(media.title());
         String coverImageUrl = resolveCoverImage(media.coverImage());
         Double score = media.averageScore() != null
-                ? Math.round((media.averageScore() / 10.0) * 10.0) / 10.0
+                ? media.averageScore() / 10.0
                 : null;
-        String synopsis = media.description() != null
-                ? media.description().replaceAll("<[^>]*>", "").trim()
-                : null;
+        String synopsis = sanitizeSynopsis(media.description());
 
         return new DiscoverAnimeResponse(
                 media.id(),
@@ -193,6 +191,21 @@ public class AniListService {
                 media.status(),
                 synopsis
         );
+    }
+
+    private String sanitizeSynopsis(String description) {
+        if (description == null) {
+            return null;
+        }
+        return description
+                .replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("<[^>]*>", "")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&#039;", "'")
+                .replace("&amp;", "&")
+                .trim();
     }
 
     private String resolveTitle(AniListTitle title) {

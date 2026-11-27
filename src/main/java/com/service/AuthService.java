@@ -14,6 +14,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Locale;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -24,7 +26,9 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        String normalizedEmail = normalizeEmail(request.email());
+
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new DuplicateResourceException("Email is already registered");
         }
 
@@ -34,7 +38,7 @@ public class AuthService {
 
         User user = User.builder()
                 .username(request.username())
-                .email(request.email())
+                .email(normalizedEmail)
                 .password(passwordEncoder.encode(request.password()))
                 .build();
 
@@ -45,15 +49,21 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
+        String normalizedEmail = normalizeEmail(request.email());
+
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password())
+                new UsernamePasswordAuthenticationToken(normalizedEmail, request.password())
         );
 
-        User user = userRepository.findByEmail(request.email())
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         String token = jwtService.generateToken(user);
 
         return new AuthResponse(token, user.getDisplayUsername(), user.getEmail());
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }

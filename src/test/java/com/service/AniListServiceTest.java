@@ -54,7 +54,7 @@ class AniListServiceTest {
                           "episodes": 28,
                           "averageScore": 91,
                           "status": "FINISHED",
-                          "description": "An elf mage embarks on a journey.<br><br><i>Award winner.</i>"
+                          "description": "An elf mage&#039;s journey.<br><br/><i>&quot;Magic &amp; Memory&quot;</i> &lt;S1&gt;"
                         }
                       ]
                     }
@@ -82,7 +82,7 @@ class AniListServiceTest {
         assertEquals(28, item.episodes());
         assertEquals(9.1, item.score());
         assertEquals("FINISHED", item.airingStatus());
-        assertEquals("An elf mage embarks on a journey.Award winner.", item.synopsis());
+        assertEquals("An elf mage's journey.\n\n\"Magic & Memory\" <S1>", item.synopsis());
     }
 
     @Test

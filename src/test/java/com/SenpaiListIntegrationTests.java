@@ -15,7 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -27,7 +27,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.hamcrest.Matchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -44,7 +45,7 @@ class SenpaiListIntegrationTests {
     @Autowired
     private AnimeRepository animeRepository;
 
-    @MockitoBean
+    @MockitoSpyBean
     private AniListService aniListService;
 
     @Value("${jwt.secret}")
@@ -129,13 +130,14 @@ class SenpaiListIntegrationTests {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409));
 
-        // Valid login -> 200
+        // Valid login with mixed-case email -> 200 (normalized)
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"naruto@senpailist.com","password":"secret123"}
+                                {"email":"NARUTO@SENPAILIST.COM","password":"secret123"}
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("naruto@senpailist.com"))
                 .andExpect(jsonPath("$.token").isNotEmpty());
 
         // Bad credentials -> 401
@@ -507,7 +509,7 @@ class SenpaiListIntegrationTests {
                 .andExpect(jsonPath("$.status").value(400));
 
         // Search -> 200
-        when(aniListService.searchAnime("frieren", 1)).thenReturn(List.of(
+        doReturn(List.of(
                 new DiscoverAnimeResponse(
                         154587L,
                         "Frieren: Beyond Journey's End",
@@ -517,7 +519,7 @@ class SenpaiListIntegrationTests {
                         "FINISHED",
                         "An elf mage embarks on a journey."
                 )
-        ));
+        )).when(aniListService).searchAnime("frieren", 1);
 
         mockMvc.perform(get("/api/v1/discover/search?q=frieren")
                         .header("Authorization", "Bearer " + token))
@@ -531,7 +533,7 @@ class SenpaiListIntegrationTests {
                 .andExpect(jsonPath("$[0].airingStatus").value("FINISHED"));
 
         // Top -> 200
-        when(aniListService.getTopAnime(2)).thenReturn(List.of(
+        doReturn(List.of(
                 new DiscoverAnimeResponse(
                         5114L,
                         "Fullmetal Alchemist: Brotherhood",
@@ -541,7 +543,7 @@ class SenpaiListIntegrationTests {
                         "FINISHED",
                         "Two brothers search for the Philosopher's Stone."
                 )
-        ));
+        )).when(aniListService).getTopAnime(2);
 
         mockMvc.perform(get("/api/v1/discover/top?page=2")
                         .header("Authorization", "Bearer " + token))
@@ -550,9 +552,10 @@ class SenpaiListIntegrationTests {
                 .andExpect(jsonPath("$[0].anilistId").value(5114));
 
         // Upstream rate limit -> 503 ErrorResponse
-        when(aniListService.getTopAnime(3)).thenThrow(
-                new UpstreamServiceException(HttpStatus.SERVICE_UNAVAILABLE, "AniList API rate limit exceeded. Please try again later.")
-        );
+        doThrow(new UpstreamServiceException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "AniList API rate limit exceeded. Please try again later."
+        )).when(aniListService).getTopAnime(3);
 
         mockMvc.perform(get("/api/v1/discover/top?page=3")
                         .header("Authorization", "Bearer " + token))
@@ -561,15 +564,76 @@ class SenpaiListIntegrationTests {
                 .andExpect(jsonPath("$.error").value("Service Unavailable"));
 
         // Upstream error -> 502 ErrorResponse
-        when(aniListService.searchAnime("error", 1)).thenThrow(
-                new UpstreamServiceException(HttpStatus.BAD_GATEWAY, "Upstream AniList API error (status 500)")
-        );
+        doThrow(new UpstreamServiceException(
+                HttpStatus.BAD_GATEWAY,
+                "Upstream AniList API error (status 500)"
+        )).when(aniListService).searchAnime("error", 1);
 
         mockMvc.perform(get("/api/v1/discover/search?q=error")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.status").value(502))
                 .andExpect(jsonPath("$.error").value("Bad Gateway"));
+    }
+
+    @Test
+    void animeAndSeasonPatchAndDeleteHappyPathsWork() throws Exception {
+        String token = registerUser("ichigo", "ichigo@senpailist.com", "secret123");
+
+        MvcResult createResult = mockMvc.perform(post("/api/v1/animes")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Dandadan",
+                                  "seasons": [
+                                    {"seasonNumber": 1, "status": "WATCHING", "episodesWatched": 5, "totalEpisodes": 12}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.overallStatus").value("WATCHING"))
+                .andReturn();
+
+        String body = createResult.getResponse().getContentAsString();
+        long animeId = extractJsonLong(body, "id");
+        String seasonsPart = body.substring(body.indexOf("\"seasons\""));
+        long seasonId = extractJsonLong(seasonsPart, "id");
+
+        // PATCH season -> 200 OK & updates parent overallStatus
+        mockMvc.perform(patch("/api/v1/animes/" + animeId + "/seasons/" + seasonId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status": "COMPLETED", "episodesWatched": 12, "rating": 9}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.episodesWatched").value(12))
+                .andExpect(jsonPath("$.rating").value(9));
+
+        mockMvc.perform(get("/api/v1/animes/" + animeId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.overallStatus").value("COMPLETED"));
+
+        // DELETE season -> 204 No Content & subsequent GET -> 404
+        mockMvc.perform(delete("/api/v1/animes/" + animeId + "/seasons/" + seasonId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/animes/" + animeId + "/seasons/" + seasonId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+
+        // DELETE anime -> 204 No Content & subsequent GET -> 404
+        mockMvc.perform(delete("/api/v1/animes/" + animeId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/animes/" + animeId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
     }
 
     @Test
